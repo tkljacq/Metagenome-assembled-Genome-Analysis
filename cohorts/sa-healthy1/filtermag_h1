@@ -1,0 +1,48 @@
+#!/bin/bash
+#SBATCH --job-name=filter_mags_h1
+#SBATCH --partition=cpu1
+#SBATCH --output=/home/jtay0094/filter_mags_h1_%j.out
+#SBATCH --error=/home/jtay0094/filter_mags_h1_%j.err
+#SBATCH --time=04:00:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8G
+
+set -eo pipefail
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate qiime2-moshpit-2025.7
+
+# ---- Inputs ----
+BIN_DIR="/home/jtay0094/DNA_sequences/assembly/binning/healthy1"
+BUSCO_DIR="/home/jtay0094/DNA_sequences/assembly/busco/healthy1"
+
+MAGS_QZA="${BIN_DIR}/mags.qza"
+BUSCO_RESULTS_QZA="${BUSCO_DIR}/busco_results.qza"
+
+# ---- Output ----
+OUT_DIR="/home/jtay0094/DNA_sequences/assembly/filtering/healthy1"
+mkdir -p "$OUT_DIR"
+
+# Change this threshold anytime you want:
+# Tutorial example is complete>50
+WHERE_CLAUSE="complete>50"
+
+FILTERED_MAGS_QZA="${OUT_DIR}/mags_filtered.qza"
+
+# ---- Checks ----
+[[ -f "$MAGS_QZA" ]] || { echo "ERROR: Missing $MAGS_QZA" >&2; exit 1; }
+[[ -f "$BUSCO_RESULTS_QZA" ]] || { echo "ERROR: Missing $BUSCO_RESULTS_QZA" >&2; exit 1; }
+
+# ---- Filter ----
+mosh annotate filter-mags \
+  --i-mags "$MAGS_QZA" \
+  --m-metadata-file "$BUSCO_RESULTS_QZA" \
+  --p-where "$WHERE_CLAUSE" \
+  --p-no-exclude-ids \
+  --p-on mag \
+  --o-filtered-mags "$FILTERED_MAGS_QZA" \
+  --verbose
+
+echo "Done."
+echo "Filtered MAGs: $FILTERED_MAGS_QZA"
+
