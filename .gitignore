@@ -1,0 +1,30 @@
+# Raw sequencing files
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Alignments
+*.bam
+*.sam
+*.cram
+
+# Assembly outputs
+megahit_out/
+spades_out/
+
+# Host removal outputs
+kneaddata*/
+
+# QC
+quast*/
+
+# Logs
+*.out
+*.err
+logs/
+
+# Other large outputs
+*.fa
+*.fasta
+
