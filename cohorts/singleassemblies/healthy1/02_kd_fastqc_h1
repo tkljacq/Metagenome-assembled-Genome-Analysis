@@ -1,0 +1,59 @@
+#!/bin/bash
+#SBATCH --job-name=qc_paired_h1
+#SBATCH --partition=cpu1
+#SBATCH --output=/home/jtay0094/qc_paired_h1_%j.out
+#SBATCH --error=/home/jtay0094/qc_paired_h1_%j.err
+#SBATCH --time=1-00:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8G
+
+set -eo pipefail
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate metaprep   # fastqc + multiqc are in this env for you
+
+IN_DIR="/home/jtay0094/DNA_sequences/kneaddata/healthy1"
+FASTQC_DIR="$IN_DIR/fastqc_paired"
+MULTIQC_DIR="$IN_DIR/multiqc_paired"
+
+mkdir -p "$FASTQC_DIR" "$MULTIQC_DIR"
+shopt -s nullglob
+
+P1_FILES=("$IN_DIR"/*_paired_1.fastq)
+
+if [[ ${#P1_FILES[@]} -eq 0 ]]; then
+  echo "ERROR: No '*_paired_1.fastq' files found in $IN_DIR" >&2
+  exit 1
+fi
+
+echo "Running FastQC on paired reads only..."
+echo "Input:  $IN_DIR"
+echo "FastQC: $FASTQC_DIR"
+echo
+
+for P1 in "${P1_FILES[@]}"; do
+  base=$(basename "$P1")
+  sample="${base%%_paired_1.fastq}"
+  P2="$IN_DIR/${sample}_paired_2.fastq"
+
+  if [[ ! -f "$P2" ]]; then
+    echo "WARNING: Missing paired_2 for sample '$sample' — skipping"
+    continue
+  fi
+
+  # Skip if FastQC outputs already exist
+  if [[ -f "$FASTQC_DIR/${sample}_paired_1_fastqc.zip" && -f "$FASTQC_DIR/${sample}_paired_2_fastqc.zip" ]]; then
+    echo "FastQC already exists for $sample — skipping"
+    continue
+  fi
+
+  echo "FastQC: $sample"
+  fastqc -t "$SLURM_CPUS_PER_TASK" -o "$FASTQC_DIR" "$P1" "$P2"
+done
+
+echo
+echo "Running MultiQC..."
+multiqc "$FASTQC_DIR" -o "$MULTIQC_DIR"
+
+echo "Done. MultiQC report should be in: $MULTIQC_DIR"
+

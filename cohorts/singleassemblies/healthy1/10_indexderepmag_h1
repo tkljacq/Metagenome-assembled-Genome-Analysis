@@ -1,0 +1,43 @@
+#!/bin/bash
+#SBATCH --job-name=index_derep098_h1
+#SBATCH --partition=highprio
+#SBATCH --output=/home/jtay0094/index_derep098_h1_%j.out
+#SBATCH --error=/home/jtay0094/index_derep098_h1_%j.err
+#SBATCH --time=2-00:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
+
+set -eo pipefail
+echo "START: $(date)"
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate qiime2-moshpit-2025.7
+
+THREADS="${SLURM_CPUS_PER_TASK}"
+SEED="100"
+
+BASE="/home/jtay0094/MAGs/healthy1"
+MAGS="$BASE/binning/derep_thr098/mags_derep.qza"   # <-- FeatureData[MAG]
+
+OUTDIR="$BASE/binning/abundance_derep098"
+mkdir -p "$OUTDIR"
+
+INDEX_QZA="$OUTDIR/mags_derep098_index.qza"
+
+[[ -f "$MAGS" ]] || { echo "ERROR: Missing $MAGS" >&2; exit 1; }
+
+if [[ -f "$INDEX_QZA" ]]; then
+  echo "Index already exists — skipping: $INDEX_QZA"
+  echo "END: $(date)"
+  exit 0
+fi
+
+mosh assembly index-derep-mags \
+  --i-mags "$MAGS" \
+  --p-threads "$THREADS" \
+  --p-seed "$SEED" \
+  --o-index "$INDEX_QZA" \
+  --verbose
+
+echo "END: $(date)"
+echo "Index: $INDEX_QZA"
