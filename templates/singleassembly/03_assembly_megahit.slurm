@@ -12,7 +12,7 @@ set -eo pipefail
 # ===============================
 # User setting (EDIT THIS ONLY)
 # ===============================
-COHORT="healthy1"
+COHORT="REPLACE_ME"
 
 # ===============================
 # Environment
@@ -25,8 +25,9 @@ conda activate qiime2-moshpit-2025.7
 # ===============================
 IN_DIR="/home/jtay0094/MAGs/${COHORT}/kneaddata"
 OUT_BASE="/home/jtay0094/MAGs/${COHORT}/assembly"
+CONTIGS_DIR="$OUT_BASE/contigs"
 
-mkdir -p "$OUT_BASE"
+mkdir -p "$OUT_BASE" "$CONTIGS_DIR"
 shopt -s nullglob
 
 # Expect KneadData paired outputs:
@@ -54,6 +55,8 @@ for P1 in "${P1_FILES[@]}"; do
   CONTIGS="$MEGAHIT_DIR/final.contigs.fa"
   QUAST_DIR="$SAMPLE_DIR/quast"
 
+  FINAL_CONTIGS="$CONTIGS_DIR/${sample}_contigs.fasta"
+
   mkdir -p "$SAMPLE_DIR"
 
   echo "==============================================="
@@ -78,6 +81,16 @@ for P1 in "${P1_FILES[@]}"; do
       --min-contig-len 500
   fi
 
+  # ----- Export/rename contigs -----
+  if [[ -f "$CONTIGS" ]]; then
+    if [[ -f "$FINAL_CONTIGS" ]]; then
+      echo "Renamed contigs already exist — skipping export"
+    else
+      cp -f "$CONTIGS" "$FINAL_CONTIGS"
+      echo "Exported: $FINAL_CONTIGS"
+    fi
+  fi
+
   # ----- QUAST -----
   if [[ -f "$CONTIGS" ]]; then
     if [[ -f "$QUAST_DIR/report.html" || -f "$QUAST_DIR/report.tsv" || -f "$QUAST_DIR/report.txt" ]]; then
@@ -96,4 +109,3 @@ for P1 in "${P1_FILES[@]}"; do
 done
 
 echo "All assemblies completed."
-
