@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=busco
-#SBATCH --partition=cpu1.largem
+#SBATCH --job-name=06_busco
+#SBATCH --partition=highprio
 #SBATCH --output=/home/jtay0094/%x_%j.out
 #SBATCH --error=/home/jtay0094/%x_%j.err
 #SBATCH --time=1-12:00:00
@@ -23,6 +23,10 @@ COHORT="healthy1"
 # ===============================
 source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
 conda activate qiime2-moshpit-2025.7
+
+# Force QIIME2 temp to project tmp (avoid /tmp full)
+export TMPDIR="/home/jtay0094/MAGs/${COHORT}/assembly/tmp_q2"
+mkdir -p "$TMPDIR"
 
 CPU="${SLURM_CPUS_PER_TASK}"
 LINEAGE="bacteria_odb12"

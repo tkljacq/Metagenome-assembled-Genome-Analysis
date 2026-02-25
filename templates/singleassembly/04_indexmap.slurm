@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=indexmap
-#SBATCH --partition=cpu1.largem
+#SBATCH --job-name=04_indexmap
+#SBATCH --partition=highprio
 #SBATCH --output=/home/jtay0094/%x_%j.out
 #SBATCH --error=/home/jtay0094/%x_%j.err
 #SBATCH --time=2-00:00:00
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=96G
 
 set -eo pipefail
 
@@ -23,6 +23,10 @@ COHORT="healthy1"
 # ===============================
 source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
 conda activate qiime2-moshpit-2025.7
+
+# Force QIIME2 temp to project tmp (avoid /tmp full)
+export TMPDIR="/home/jtay0094/MAGs/${COHORT}/assembly/tmp_q2"
+mkdir -p "$TMPDIR"
 
 THREADS="${SLURM_CPUS_PER_TASK}"
 SEED="100"
