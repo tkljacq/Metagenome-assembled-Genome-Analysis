@@ -1,0 +1,29 @@
+#!/bin/bash
+#SBATCH --job-name=12_abund_derep098_h1
+#SBATCH --partition=highprio
+#SBATCH --output=/home/jtay0094/abund_derep098_h1_%j.out
+#SBATCH --error=/home/jtay0094/abund_derep098_h1_%j.err
+#SBATCH --time=2-00:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=96G
+
+set -eo pipefail
+echo "START: $(date)"
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate qiime2-moshpit-2025.7
+
+BASE="/home/jtay0094/MAGs/healthy1"
+OUTDIR="$BASE/binning/abundance_derep098"
+
+ALN_QZA="$OUTDIR/reads_to_derep098_mags.qza"
+LENGTHS_QZA="$OUTDIR/mags_derep098_lengths.qza"
+ABUND_QZA="$OUTDIR/mags_derep098_abundance.qza"
+
+mosh annotate estimate-abundance \
+  --i-alignment-maps "$ALN_QZA" \
+  --i-feature-lengths "$LENGTHS_QZA" \
+  --o-abundances "$ABUND_QZA" \
+  --verbose
+
+echo "END: $(date)"

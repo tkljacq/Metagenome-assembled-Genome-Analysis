@@ -1,0 +1,63 @@
+#!/bin/bash
+#SBATCH --job-name=filter_mags_h1
+#SBATCH --partition=highprio
+#SBATCH --output=/home/jtay0094/filter_mags_h1_%j.out
+#SBATCH --error=/home/jtay0094/filter_mags_h1_%j.err
+#SBATCH --time=04:00:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8G
+
+set -euo pipefail
+echo "START: $(date)"
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate qiime2-moshpit-2025.7
+
+BASE="/home/jtay0094/MAGs/healthy1"
+
+# ---- Inputs ----
+MAGS_QZA="$BASE/binning/metabat/mags.qza"
+BUSCO_RESULTS_QZA="$BASE/binning/busco/busco_results.qza"
+
+# ---- Output ----
+OUT_DIR="$BASE/binning/filtering"
+mkdir -p "$OUT_DIR"
+FILTERED_MAGS_QZA="$OUT_DIR/mags_filtered.qza"
+
+# Medium+High filter (MIMAG-style)
+WHERE_CLAUSE="completeness>=50 AND contamination<=10"
+
+# ---- Checks ----
+[[ -f "$MAGS_QZA" ]] || { echo "ERROR: Missing $MAGS_QZA" >&2; exit 1; }
+[[ -f "$BUSCO_RESULTS_QZA" ]] || { echo "ERROR: Missing $BUSCO_RESULTS_QZA" >&2; exit 1; }
+
+# Remove old output so we don't accidentally keep stale results
+rm -f "$FILTERED_MAGS_QZA"
+
+echo "Input MAGs: $MAGS_QZA"
+echo "BUSCO metadata: $BUSCO_RESULTS_QZA"
+echo "WHERE: $WHERE_CLAUSE"
+
+# ---- Filter ----
+qiime annotate filter-mags \
+  --i-mags "$MAGS_QZA" \
+  --m-metadata-file "$BUSCO_RESULTS_QZA" \
+  --p-where "$WHERE_CLAUSE" \
+  --p-no-exclude-ids \
+  --p-on mag \
+  --o-filtered-mags "$FILTERED_MAGS_QZA" \
+  --verbose
+
+echo "Filtered MAGs: $FILTERED_MAGS_QZA"
+
+# ---- Quick sanity count (export + count FASTAs) ----
+CHECK_DIR="$OUT_DIR/filtered_export_check"
+rm -rf "$CHECK_DIR"
+qiime tools export \
+  --input-path "$FILTERED_MAGS_QZA" \
+  --output-path "$CHECK_DIR"
+
+echo -n "Filtered FASTA count: "
+find "$CHECK_DIR" -type f -name "*.fasta" | wc -l
+
+echo "END: $(date)"

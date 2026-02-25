@@ -1,0 +1,33 @@
+#!/bin/bash
+#SBATCH --job-name=15_taxa_barplot_h1
+#SBATCH --partition=cpu1
+#SBATCH --output=/home/jtay0094/taxa_barplot_h1_%j.out
+#SBATCH --error=/home/jtay0094/taxa_barplot_h1_%j.err
+#SBATCH --time=02:00:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8G
+
+set -eo pipefail
+echo "START: $(date)"
+
+source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
+conda activate qiime2-moshpit-2025.7
+
+BASE="/home/jtay0094/MAGs/healthy1"
+
+TABLE="$BASE/binning/abundance_derep098/mags_derep098_abundance.qza"
+TAX="$BASE/taxonomy/kraken2_pluspf_derep098/mags-taxonomy.qza"
+
+OUTDIR="$BASE/taxonomy/kraken2_pluspf_derep098"
+BARPLOT="$OUTDIR/mags_taxa_barplot.qzv"
+
+[[ -f "$TABLE" ]] || { echo "ERROR: Missing $TABLE" >&2; exit 1; }
+[[ -f "$TAX" ]] || { echo "ERROR: Missing $TAX" >&2; exit 1; }
+
+qiime taxa barplot \
+  --i-table "$TABLE" \
+  --i-taxonomy "$TAX" \
+  --o-visualization "$BARPLOT"
+
+echo "END: $(date)"
+echo "Barplot: $BARPLOT"
