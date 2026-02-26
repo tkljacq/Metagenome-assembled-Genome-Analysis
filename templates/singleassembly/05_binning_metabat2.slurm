@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
 
-set -eo pipefail
+set -eEo pipefail
 
 echo "==============================================="
 echo "Job started at: $(date)"

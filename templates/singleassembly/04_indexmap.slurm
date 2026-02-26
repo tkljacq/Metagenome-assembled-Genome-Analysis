@@ -5,9 +5,9 @@
 #SBATCH --error=/home/jtay0094/%x_%j.err
 #SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=96G
+#SBATCH --mem=90G
 
-set -eo pipefail
+set -eEo pipefail
 
 echo "==============================================="
 echo "Job started at: $(date)"
