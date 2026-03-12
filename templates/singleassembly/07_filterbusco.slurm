@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=07_filterbusco_h1
+#SBATCH --job-name=07_filterbusco_xx
 #SBATCH --partition=highprio
 #SBATCH --output=/home/jtay0094/%x_%j.out
 #SBATCH --error=/home/jtay0094/%x_%j.err
@@ -35,6 +35,9 @@ OUT_DIR="$BASE/binning/filtering"
 FILTERED_MAGS_QZA="$OUT_DIR/mags_filtered.qza"
 CHECK_DIR="$OUT_DIR/filtered_export_check"
 
+BUSCO_EXPORT_DIR="$OUT_DIR/busco_export_for_filter"
+BUSCO_TSV="$BUSCO_EXPORT_DIR/busco_results.tsv"
+
 WHERE_CLAUSE="completeness>=${MIN_COMPLETENESS} AND contamination<=${MAX_CONTAMINATION}"
 
 # ===============================
@@ -47,14 +50,26 @@ mkdir -p "$OUT_DIR"
 
 # Remove stale outputs
 rm -f "$FILTERED_MAGS_QZA"
-rm -rf "$CHECK_DIR"
+rm -rf "$CHECK_DIR" "$BUSCO_EXPORT_DIR"
+
+# ===============================
+# Export BUSCO metadata
+# ===============================
+qiime tools export \
+  --input-path "$BUSCO_RESULTS_QZA" \
+  --output-path "$BUSCO_EXPORT_DIR"
+
+[[ -f "$BUSCO_TSV" ]] || { echo "ERROR: Missing exported BUSCO TSV: $BUSCO_TSV" >&2; exit 1; }
+
+# Rename first metadata column to a QIIME-recognized ID header
+sed -i '1 s/^mag_id\t/id\t/' "$BUSCO_TSV"
 
 # ===============================
 # Filter
 # ===============================
 qiime annotate filter-mags \
   --i-mags "$MAGS_QZA" \
-  --m-metadata-file "$BUSCO_RESULTS_QZA" \
+  --m-metadata-file "$BUSCO_TSV" \
   --p-where "$WHERE_CLAUSE" \
   --p-no-exclude-ids \
   --p-on mag \

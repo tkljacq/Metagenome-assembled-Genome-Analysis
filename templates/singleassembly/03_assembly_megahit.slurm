@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=03_megahit
-#SBATCH --partition=cpu1.largem
+#SBATCH --job-name=03_megahit_xx
+#SBATCH --partition=highprio
 #SBATCH --output=/home/jtay0094/%x_%j.out
 #SBATCH --error=/home/jtay0094/%x_%j.err
 #SBATCH --time=3-00:00:00
@@ -10,27 +10,28 @@
 set -eo pipefail
 
 # ===============================
-# User setting (EDIT THIS ONLY)
+# USER SETTINGS (EDIT THIS ONLY)
 # ===============================
-COHORT="REPLACE_ME"
+COHORT="healthy1"
 
 # ===============================
-# Environment
+# ENVIRONMENT
 # ===============================
 source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
 conda activate qiime2-moshpit-2025.7
 
 # ===============================
-# Directories
+# DIRECTORIES
 # ===============================
 IN_DIR="/home/jtay0094/MAGs/${COHORT}/kneaddata"
-OUT_BASE="/home/jtay0094/MAGs/${COHORT}/assembly"
-CONTIGS_DIR="$OUT_BASE/contigs"
+ASSEMBLY_BASE="/home/jtay0094/MAGs/${COHORT}/assembly"
+OUT_BASE="${ASSEMBLY_BASE}/${COHORT}"
+CONTIGS_DIR="${ASSEMBLY_BASE}/contigs"
 
 mkdir -p "$OUT_BASE" "$CONTIGS_DIR"
 shopt -s nullglob
 
-# Expect KneadData paired outputs:
+# Expected KneadData paired outputs:
 #   <sample>_paired_1.fastq
 #   <sample>_paired_2.fastq
 P1_FILES=("$IN_DIR"/*_paired_1.fastq)
@@ -41,36 +42,37 @@ if [[ ${#P1_FILES[@]} -eq 0 ]]; then
 fi
 
 for P1 in "${P1_FILES[@]}"; do
-  base=$(basename "$P1")
-  sample="${base%%_paired_1.fastq}"
-  P2="$IN_DIR/${sample}_paired_2.fastq"
+  BASE=$(basename "$P1")
+  SAMPLE="${BASE%%_paired_1.fastq}"
+  P2="$IN_DIR/${SAMPLE}_paired_2.fastq"
 
   if [[ ! -f "$P2" ]]; then
-    echo "WARNING: Missing paired_2 for sample '$sample' — skipping"
+    echo "WARNING: Missing paired read for sample '$SAMPLE' — skipping"
     continue
   fi
 
-  SAMPLE_DIR="$OUT_BASE/$sample"
+  SAMPLE_DIR="$OUT_BASE/$SAMPLE"
   MEGAHIT_DIR="$SAMPLE_DIR/megahit"
   CONTIGS="$MEGAHIT_DIR/final.contigs.fa"
   QUAST_DIR="$SAMPLE_DIR/quast"
-
-  FINAL_CONTIGS="$CONTIGS_DIR/${sample}_contigs.fasta"
+  FINAL_CONTIGS="$CONTIGS_DIR/${SAMPLE}_contigs.fasta"
 
   mkdir -p "$SAMPLE_DIR"
 
   echo "==============================================="
-  echo "Cohort: $COHORT"
-  echo "Sample: $sample"
+  echo "COHORT : $COHORT"
+  echo "SAMPLE : $SAMPLE"
+  echo "STEP   : MEGAHIT assembly + QUAST"
+  echo "PARAMS : --min-contig-len 1000"
   echo "==============================================="
 
-  # ----- MEGAHIT -----
+  # ===============================
+  # MEGAHIT
+  # ===============================
   if [[ -f "$CONTIGS" ]]; then
-    echo "MEGAHIT contigs already exist — skipping assembly"
+    echo "MEGAHIT output exists — skipping assembly"
   else
-    if [[ -d "$MEGAHIT_DIR" ]]; then
-      rm -rf "$MEGAHIT_DIR"
-    fi
+    rm -rf "$MEGAHIT_DIR"
 
     megahit \
       -1 "$P1" \
@@ -78,33 +80,35 @@ for P1 in "${P1_FILES[@]}"; do
       -o "$MEGAHIT_DIR" \
       -t "$SLURM_CPUS_PER_TASK" \
       --presets meta-sensitive \
-      --min-contig-len 500
+      --min-contig-len 1000
   fi
 
-  # ----- Export/rename contigs -----
+  # ===============================
+  # EXPORT CONTIGS
+  # ===============================
   if [[ -f "$CONTIGS" ]]; then
-    if [[ -f "$FINAL_CONTIGS" ]]; then
-      echo "Renamed contigs already exist — skipping export"
-    else
-      cp -f "$CONTIGS" "$FINAL_CONTIGS"
-      echo "Exported: $FINAL_CONTIGS"
-    fi
+    cp -f "$CONTIGS" "$FINAL_CONTIGS"
+    echo "Exported contigs: $FINAL_CONTIGS"
+  else
+    echo "WARNING: Contigs not found for sample '$SAMPLE'"
+    continue
   fi
 
-  # ----- QUAST -----
-  if [[ -f "$CONTIGS" ]]; then
-    if [[ -f "$QUAST_DIR/report.html" || -f "$QUAST_DIR/report.tsv" || -f "$QUAST_DIR/report.txt" ]]; then
-      echo "QUAST already exists — skipping"
-    else
-      mkdir -p "$QUAST_DIR"
-      quast.py "$CONTIGS" \
-        -o "$QUAST_DIR" \
-        -t "$SLURM_CPUS_PER_TASK" \
-        --min-contig 500
-    fi
+  # ===============================
+  # QUAST
+  # ===============================
+  if [[ -f "$QUAST_DIR/report.html" || -f "$QUAST_DIR/report.tsv" || -f "$QUAST_DIR/report.txt" ]]; then
+    echo "QUAST output exists — skipping"
+  else
+    mkdir -p "$QUAST_DIR"
+
+    quast.py "$CONTIGS" \
+      -o "$QUAST_DIR" \
+      -t "$SLURM_CPUS_PER_TASK" \
+      --min-contig 1000
   fi
 
-  echo "Done $sample"
+  echo "Done: $SAMPLE"
   echo
 done
 
