@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=06_busco
+#SBATCH --job-name=06_busco_xx
 #SBATCH --partition=highprio
 #SBATCH --output=/home/jtay0094/%x_%j.out
 #SBATCH --error=/home/jtay0094/%x_%j.err
@@ -8,18 +8,28 @@
 #SBATCH --mem=32G
 
 set -eEo pipefail
+export LC_ALL=C
+export LANG=C
 
-echo "==============================================="
-echo "Job started at: $(date)"
-echo "==============================================="
+START_TIME=$(date +%s)
+
+echo "================================================="
+echo "START: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "JOB: ${SLURM_JOB_NAME}  ID: ${SLURM_JOB_ID}"
+echo "NODE: $(hostname)"
+echo "================================================="
 
 # ===============================
-# User setting (EDIT THIS ONLY)
+# USER SETTINGS (EDIT THIS ONLY)
 # ===============================
-COHORT="healthy1"
+COHORT="ibsd1"
+LINEAGE="bacteria_odb12"
+
+# Shared BUSCO DB (download once, reuse for all cohorts)
+BUSCO_DB_QZA="/home/jtay0094/databases/busco/bacteria_odb12.qza"
 
 # ===============================
-# Environment
+# ENVIRONMENT
 # ===============================
 source /home/jtay0094/miniconda3/etc/profile.d/conda.sh
 conda activate qiime2-moshpit-2025.7
@@ -29,46 +39,34 @@ export TMPDIR="/home/jtay0094/MAGs/${COHORT}/assembly/tmp_q2"
 mkdir -p "$TMPDIR"
 
 CPU="${SLURM_CPUS_PER_TASK}"
-LINEAGE="bacteria_odb12"
 
 # ===============================
-# Inputs (from 05_binning_metabat)
+# INPUTS
 # ===============================
 BIN_DIR="/home/jtay0094/MAGs/${COHORT}/binning/metabat"
 MAGS_QZA="${BIN_DIR}/mags.qza"
 
 # ===============================
-# Outputs
+# OUTPUTS
 # ===============================
 OUT_DIR="/home/jtay0094/MAGs/${COHORT}/binning/busco"
 mkdir -p "$OUT_DIR"
 
-BUSCO_DB_QZA="${OUT_DIR}/busco_db.qza"
 BUSCO_RESULTS_QZA="${OUT_DIR}/busco_results.qza"
 BUSCO_VIZ_QZV="${OUT_DIR}/mags_busco.qzv"
 
 # ===============================
-# Checks
+# CHECKS
 # ===============================
-[[ -f "$MAGS_QZA" ]] || { echo "ERROR: Missing MAGs artifact: $MAGS_QZA" >&2; exit 1; }
+[[ -f "$MAGS_QZA" ]]     || { echo "ERROR: Missing MAGs artifact: $MAGS_QZA" >&2; exit 1; }
+[[ -f "$BUSCO_DB_QZA" ]] || { echo "ERROR: Missing shared BUSCO DB: $BUSCO_DB_QZA" >&2; exit 1; }
 
 # ===============================
-# 1) Fetch BUSCO DB (run once)
-# ===============================
-if [[ ! -f "$BUSCO_DB_QZA" ]]; then
-  echo "Fetching BUSCO DB at: $(date)"
-  mosh annotate fetch-busco-db \
-    --p-lineages "$LINEAGE" \
-    --o-db "$BUSCO_DB_QZA" \
-    --verbose
-  echo "Finished fetching BUSCO DB at: $(date)"
-fi
-
-# ===============================
-# 2) Evaluate MAGs with BUSCO
+# RUN BUSCO
 # ===============================
 if [[ ! -f "$BUSCO_RESULTS_QZA" || ! -f "$BUSCO_VIZ_QZV" ]]; then
-  echo "Starting BUSCO evaluation at: $(date)"
+  echo "Starting BUSCO evaluation: $(date '+%Y-%m-%d %H:%M:%S')"
+
   mosh annotate evaluate-busco \
     --i-mags "$MAGS_QZA" \
     --i-db "$BUSCO_DB_QZA" \
@@ -77,15 +75,21 @@ if [[ ! -f "$BUSCO_RESULTS_QZA" || ! -f "$BUSCO_VIZ_QZV" ]]; then
     --o-visualization "$BUSCO_VIZ_QZV" \
     --o-results "$BUSCO_RESULTS_QZA" \
     --verbose
-  echo "Finished BUSCO evaluation at: $(date)"
+
+  echo "Finished BUSCO evaluation: $(date '+%Y-%m-%d %H:%M:%S')"
 else
-  echo "BUSCO outputs already exist — skipping."
+  echo "BUSCO outputs already exist — skipping"
 fi
 
-echo "==============================================="
-echo "BUSCO evaluation completed at: $(date)"
+# ===============================
+# FINISH
+# ===============================
+END_TIME=$(date +%s)
+RUNTIME=$((END_TIME - START_TIME))
+
+echo "================================================="
+echo "END: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Total runtime: ${RUNTIME} seconds"
 echo "Results: $BUSCO_RESULTS_QZA"
 echo "Viz:     $BUSCO_VIZ_QZV"
-echo "==============================================="
-echo "Job finished at: $(date)"
-echo "==============================================="
+echo "================================================="
